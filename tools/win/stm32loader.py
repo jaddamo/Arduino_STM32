@@ -84,7 +84,7 @@ class CommandInterface(object):
                 break
 
         if not got:
-            raise CmdException("No response to %s" % info)
+            raise CmdException(f"No response to {info}")
 
         # wait for ask
         ask = ord(got)
@@ -94,7 +94,7 @@ class CommandInterface(object):
             return 1
         elif ask == 0x1F:
             # NACK
-            raise CmdException("Chip replied with a NACK during %s" % info)
+            raise CmdException(f"Chip replied with a NACK during {info}")
 
         # Unknown response
         raise CmdException("Unrecognised response 0x%x to %s" % (ask, info))
@@ -136,17 +136,16 @@ class CommandInterface(object):
         return self._wait_for_ack(hex(cmd))
 
     def cmdGet(self):
-        if self.cmdGeneric(0x00):
-            mdebug(10, "*** Get command");
-            len = ord(self.sp.read())
-            version = ord(self.sp.read())
-            mdebug(10, "    Bootloader version: "+hex(version))
-            dat = map(lambda c: hex(ord(c)), self.sp.read(len))
-            mdebug(10, "    Available commands: "+str(dat))
-            self._wait_for_ack("0x00 end")
-            return version
-        else:
+        if not self.cmdGeneric(0x00):
             raise CmdException("Get (0x00) failed")
+        mdebug(10, "*** Get command");
+        len = ord(self.sp.read())
+        version = ord(self.sp.read())
+        mdebug(10, f"    Bootloader version: {hex(version)}")
+        dat = map(lambda c: hex(ord(c)), self.sp.read(len))
+        mdebug(10, f"    Available commands: {str(dat)}")
+        self._wait_for_ack("0x00 end")
+        return version
 
     def cmdGetVersion(self):
         if self.cmdGeneric(0x01):
@@ -154,7 +153,7 @@ class CommandInterface(object):
             version = ord(self.sp.read())
             self.sp.read(2)
             self._wait_for_ack("0x01 end")
-            mdebug(10, "    Bootloader version: "+hex(version))
+            mdebug(10, f"    Bootloader version: {hex(version)}")
             return version
         else:
             raise CmdException("GetVersion (0x01) failed")
@@ -211,7 +210,7 @@ class CommandInterface(object):
             self._wait_for_ack("0x31 address failed")
             #map(lambda c: hex(ord(c)), data)
             lng = (len(data)-1) & 0xFF
-            mdebug(10, "    %s bytes to write" % [lng+1]);
+            mdebug(10, f"    {[lng + 1]} bytes to write");
             self.sp.write(chr(lng)) # len really
             crc = 0xFF
             for c in data:
@@ -225,24 +224,23 @@ class CommandInterface(object):
 
 
     def cmdEraseMemory(self, sectors = None):
-        if self.cmdGeneric(0x43):
-            mdebug(10, "*** Erase memory command")
-            if sectors is None:
-                # Global erase
-                self.sp.write(chr(0xFF))
-                self.sp.write(chr(0x00))
-            else:
-                # Sectors erase
-                self.sp.write(chr((len(sectors)-1) & 0xFF))
-                crc = 0xFF
-                for c in sectors:
-                    crc = crc ^ c
-                    self.sp.write(chr(c))
-                self.sp.write(chr(crc))
-            self._wait_for_ack("0x43 erasing failed")
-            mdebug(10, "    Erase memory done")
-        else:
+        if not self.cmdGeneric(0x43):
             raise CmdException("Erase memory (0x43) failed")
+        mdebug(10, "*** Erase memory command")
+        if sectors is None:
+            # Global erase
+            self.sp.write(chr(0xFF))
+            self.sp.write(chr(0x00))
+        else:
+            # Sectors erase
+            self.sp.write(chr((len(sectors)-1) & 0xFF))
+            crc = 0xFF
+            for c in sectors:
+                crc = crc ^ c
+                self.sp.write(chr(c))
+            self.sp.write(chr(crc))
+        self._wait_for_ack("0x43 erasing failed")
+        mdebug(10, "    Erase memory done")
 
 
     # TODO support for non-global mass erase
@@ -348,7 +346,7 @@ class CommandInterface(object):
             self.cmdWriteMemory(addr, data[offs:offs+256])
             offs = offs + 256
             addr = addr + 256
-            lng = lng - 256
+            lng -= 256
         if usepbar:
             pbar.update(pbar.maxval-lng)
             pbar.finish()
@@ -380,29 +378,26 @@ def read(filename):
     with open(filename, 'rb') as f:
         bytes = f.read()
 
-    if bytes.startswith('\x7FELF'):
-        # Actually an ELF file.  Convert to binary
-        handle, path = tempfile.mkstemp(suffix='.bin', prefix='stm32loader')
-
-        try:
-            os.close(handle)
-
-            # Try a couple of options for objcopy
-            for name in ['arm-none-eabi-objcopy', 'arm-linux-gnueabi-objcopy']:
-                try:
-                    code = subprocess.call([name, '-Obinary', filename, path])
-
-                    if code == 0:
-                        return read(path)
-                except OSError:
-                    pass
-            else:
-                raise Exception('Error %d while converting to a binary file' % code)
-        finally:
-            # Remove the temporary file
-            os.unlink(path)
-    else:
+    if not bytes.startswith('\x7FELF'):
         return [ord(x) for x in bytes]
+    # Actually an ELF file.  Convert to binary
+    handle, path = tempfile.mkstemp(suffix='.bin', prefix='stm32loader')
+
+    try:
+        os.close(handle)
+
+        for name in ['arm-none-eabi-objcopy', 'arm-linux-gnueabi-objcopy']:
+            try:
+                code = subprocess.call([name, '-Obinary', filename, path])
+
+                if code == 0:
+                    return read(path)
+            except OSError:
+                pass
+        raise Exception('Error %d while converting to a binary file' % code)
+    finally:
+        # Remove the temporary file
+        os.unlink(path)
 
 if __name__ == "__main__":
 

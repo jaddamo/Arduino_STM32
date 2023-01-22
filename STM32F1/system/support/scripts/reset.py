@@ -32,7 +32,7 @@ def linux_get_maple_path(file_prefix='ttyACM'):
 
 def linux_tty_is_maple(device):
     try:
-        sysfile = open("/sys/class/tty/%s/device/uevent" % device, "r")
+        sysfile = open(f"/sys/class/tty/{device}/device/uevent", "r")
         text = "".join(sysfile.readlines())
         return "PRODUCT=1eaf/4" in text
     except IOError: # no udev info available
@@ -108,7 +108,7 @@ if maple_path is None:
           '(hold for several seconds).')
     sys.exit()
 
-print('Using %s as Maple serial port' % maple_path)
+print(f'Using {maple_path} as Maple serial port')
 
 try:
     ser = serial.Serial(maple_path, baudrate=115200, xonxoff=1)
@@ -140,6 +140,6 @@ try:
         ser.close()
 
 except Exception as e:
-    print('Failed to open serial port %s for reset' % maple_path)
+    print(f'Failed to open serial port {maple_path} for reset')
     sys.exit()
 

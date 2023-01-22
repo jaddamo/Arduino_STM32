@@ -57,10 +57,10 @@ def parse(file,dump_images=False):
 
 def build(file,targets,device=DEFAULT_DEVICE):
   data = ''
-  for t,target in enumerate(targets):
-    tdata = ''
-    for image in target:
-      tdata += struct.pack('<2I',image['address'],len(image['data']))+image['data']
+  for target in targets:
+    tdata = ''.join(
+        struct.pack('<2I', image['address'], len(image['data'])) +
+        image['data'] for image in target)
     tdata = struct.pack('<6sBI255s2I','Target',0,1,'ST...',len(tdata),len(target)) + tdata
     data += tdata
   data  = struct.pack('<5sBIB','DfuSe',1,len(data)+11,len(targets)) + data
@@ -77,8 +77,14 @@ if __name__=="__main__":
   parser = OptionParser(usage=usage)
   parser.add_option("-b", "--build", action="append", dest="binfiles",
     help="build a DFU file from given BINFILES", metavar="BINFILES")
-  parser.add_option("-D", "--device", action="store", dest="device",
-    help="build for DEVICE, defaults to %s" % DEFAULT_DEVICE, metavar="DEVICE")
+  parser.add_option(
+      "-D",
+      "--device",
+      action="store",
+      dest="device",
+      help=f"build for DEVICE, defaults to {DEFAULT_DEVICE}",
+      metavar="DEVICE",
+  )
   parser.add_option("-d", "--dump", action="store_true", dest="dump_images",
     default=False, help="dump contained images to current directory")
   (options, args) = parser.parse_args()
@@ -101,9 +107,7 @@ if __name__=="__main__":
         sys.exit(1)
       target.append({ 'address': address, 'data': open(binfile,'rb').read() })
     outfile = args[0]
-    device = DEFAULT_DEVICE
-    if options.device:
-      device=options.device
+    device = options.device or DEFAULT_DEVICE
     try:
       v,d=map(lambda x: int(x,0) & 0xFFFF, device.split(':',1))
     except:

@@ -38,13 +38,13 @@ try:
     firmware = file(binary, 'rb')
     print('* Opening %s, size=%d' % (binary, size))
 except:
-    exit('! Unable to open file %s' % binary)
+    exit(f'! Unable to open file {binary}')
 
 # Opening serial port
 try:
     s = serial.Serial(port, baudrate=115200)
 except:
-    exit('! Unable to open serial port %s' % port)
+    exit(f'! Unable to open serial port {port}')
 
 print('* Resetting the board')
 s.setRTS(True)
@@ -69,26 +69,24 @@ while True:
         pos = 0
         while True:
             c = firmware.read(2048)
-            if len(c):
-                pos += len(c)
-                sys.stdout.write("\r")
-                progressBar(100*float(pos)/float(size))
-                s.write(c)
-                for k in range(0,len(c)):
-                    cs = (cs+ord(c[k]))%256
-            else:
+            if not len(c):
                 break
+            pos += len(c)
+            sys.stdout.write("\r")
+            progressBar(100*float(pos)/float(size))
+            s.write(c)
+            for k in range(len(c)):
+                cs = (cs+ord(c[k]))%256
         print('')
         s.setDTR(True)
         print('* Checksum: %d' % (cs))
         s.write(chr(cs))
         print('* Firmware was sent')
+    elif line == 'Success..':
+        print('* Success, running the code')
+        print('')
+        s.write('AT&RST')
+        s.close()
+        exit()
     else:
-        if line == 'Success..':
-            print('* Success, running the code')
-            print('')
-            s.write('AT&RST')
-            s.close()
-            exit()
-        else:
-            print('Board -> '+line)
+        print(f'Board -> {line}')

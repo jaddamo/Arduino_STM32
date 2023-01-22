@@ -14,13 +14,13 @@ device.set_raw_data_handler(sample_handler)
 n = 0
 while True:
     for out_report in device.find_output_reports():
-        buffer=[i for i in range(SIZE+1)]
+        buffer = list(range(SIZE+1))
         buffer[0]=0x0 # report id
         buffer[-1] = n
         out_report.set_raw_data(buffer)
         print("sending")
         if out_report.send():
-            n = (n+1)&0xFF            
+            n = (n+1)&0xFF
         sleep(0.1)
         #sleep(0.005)
         

@@ -24,10 +24,7 @@ def toBits(n,bits):
     return tuple((n>>i)&1 for i in range(bits))
     
 def getByteFromBits(bits,n):
-    out = 0
-    for i in range(8):
-        out += bits[8*n+i] << i
-    return out
+    return sum(bits[8*n+i] << i for i in range(8))
 
 def joystickData(reportID=REPORT_ID, buttons=0, hat=15, x=512, y=512, rx=512, ry=512, sliderLeft=512, sliderRight=512):
     joyData = ( toBits(reportID,8) + toBits(buttons,32) + toBits(hat,4) + toBits(x,10) + toBits(y,10) + 
@@ -36,23 +33,25 @@ def joystickData(reportID=REPORT_ID, buttons=0, hat=15, x=512, y=512, rx=512, ry
     print(out)
     return out
     
-myReport = None    
-    
-for report in device.find_feature_reports():
-    if report.report_id == REPORT_ID and report.report_type == "Feature":
-        myReport = report
-        break
+myReport = next(
+    (
+        report
+        for report in device.find_feature_reports()
+        if report.report_id == REPORT_ID and report.report_type == "Feature"
+    ),
+    None,
+)
 if myReport is None:        
     for report in device.find_output_reports():
         if report.report_id == REPORT_ID and report.report_type == "Output":
             myReport = report
             break
-        
+
 assert myReport is not None        
 
 while True:
     myReport.set_raw_data(joystickData(buttons=7,x=0,y=0))
-    
+
     myReport.send()
     sleep(0.5)
     myReport.set_raw_data(joystickData(buttons=0,x=1023,y=1023))
